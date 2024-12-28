@@ -11,8 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./ui/sidebar";
-import { ChatItem } from "./chat-item";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -32,6 +31,7 @@ import {
 } from "./ui/dropdown-menu";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontalIcon, TrashIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface ChatItemProps {
   chatId: string;
@@ -81,12 +81,35 @@ const ChatItem = ({ chatId, title, href, onDelete }: ChatItemProps) => {
 };
 
 export const ChatHistory = () => {
+  const { id } = useParams();
+
   const {
     data: chats,
     isLoading,
     mutate,
   } = useSWR<Chat[]>("/api/history", fetcher);
-  console.log(chats);
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const handleDelete = async () => {
+    const deletePromise = fetch(`/api/delete?id=${deleteId}`, {
+      method: "DELETE",
+    });
+
+    toast.promise(deletePromise, {
+      loading: "Deleting chat...",
+      success: () => {
+        mutate((history) => {
+          if (history) {
+            return history.filter((h) => h.id !== id);
+          }
+        });
+        return "Chat deleted successfully";
+      },
+      error: "Failed to delete chat",
+    });
+  };
 
   useEffect(() => {
     mutate();
@@ -150,7 +173,8 @@ export const ChatHistory = () => {
                     title={chat.title}
                     href={`/chats/${chat.id}`}
                     onDelete={(chatId) => {
-                      set;
+                      setDeleteId(chatId);
+                      setShowDeleteDialog(true);
                     }}
                   />
                 ))}
